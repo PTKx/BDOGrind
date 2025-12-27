@@ -380,6 +380,10 @@
             display: none !important;
         }
 
+        .hide-base .col-base {
+            display: none !important;
+        }
+
         .view-controls {
             display: flex;
             align-items: center;
@@ -415,6 +419,9 @@
         <div class="controls">
             <div class="view-controls">
                 <label>
+                    <input type="checkbox" id="checkBase" checked onchange="toggleColumnGroup('Base')"> Show Base
+                </label>
+                <label>
                     <input type="checkbox" id="check320" checked onchange="toggleColumnGroup('320')"> Show 320%
                 </label>
                 <label>
@@ -440,8 +447,8 @@
                         <th onclick="sortTable(4)">Agris</th>
                         <th onclick="sortTable(5)">Efficiency</th>
                         <th onclick="sortTable(6)">TL Silver/H</th>
-                        <th onclick="sortTable(7)">Items Silver/H</th>
-                        <th onclick="sortTable(8)">Total (Base)</th>
+                        <th class="col-base" onclick="sortTable(7)">Items Silver/H</th>
+                        <th class="col-base" onclick="sortTable(8)">Total (Base)</th>
                         <th class="divider col-320" onclick="sortTable(9)">Items (320%)</th>
                         <th class="col-320" onclick="sortTable(10)">Total (320%)</th>
                         <th class="col-320" onclick="sortTable(11)">Silver/Agris</th>
@@ -671,7 +678,7 @@
         let currentSortCol = 13; // Default to Total (370%)
         let isEditMode = false;
         let userOverrides = {};
-        let colSettings = { show320: true, show370: true };
+        let colSettings = { show320: true, show370: true, showBase: true };
 
 
         // Helper: Collect all unique items (prefer ID, fallback to Name)
@@ -934,9 +941,13 @@
             if (!colSettings.show370) table.classList.add('hide-370');
             else table.classList.remove('hide-370');
 
+            if (!colSettings.showBase) table.classList.add('hide-base');
+            else table.classList.remove('hide-base');
+
             // Sync checkboxes
             document.getElementById('check320').checked = colSettings.show320;
             document.getElementById('check370').checked = colSettings.show370;
+            document.getElementById('checkBase').checked = colSettings.showBase;
         }
 
         function saveColSettings() {
@@ -1057,8 +1068,8 @@
                     </td>
                     <td class="${effClass}">${effText}</td>
                     <td>${formatBillions(stats.tlSilver)}</td>
-                    <td>${formatBillions(stats.itemsSilverBase)}</td>
-                    <td class="total-base">${formatBillions(stats.totalBase)}</td>
+                    <td class="col-base">${formatBillions(stats.itemsSilverBase)}</td>
+                    <td class="total-base col-base">${formatBillions(stats.totalBase)}</td>
                     <td class="items-320 divider col-320">${formatBillions(stats.itemsSilver320)}</td>
                     <td class="total-320 col-320">${formatBillions(stats.total320)}</td>
                     <td class="col-320">${stats.silverPerAgris320 > 0 ? Math.floor(stats.silverPerAgris320).toLocaleString() : '-'}</td>
