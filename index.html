@@ -260,17 +260,17 @@
 
         .loot-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 8px;
         }
 
         .loot-item {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
-            padding: 12px;
+            padding: 8px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             cursor: pointer;
             border: 1px solid transparent;
             transition: all 0.2s;
@@ -287,10 +287,15 @@
         }
 
         .item-icon {
-            width: 40px;
-            height: 40px;
+            width: 42px !important;
+            height: 42px !important;
+            min-width: 42px !important;
+            min-height: 42px !important;
+            flex-shrink: 0;
             background: #333;
-            border-radius: 6px;
+            border-radius: 4px;
+            display: block;
+            object-fit: contain;
         }
 
         .item-details {
@@ -301,21 +306,21 @@
             display: block;
             font-weight: 600;
             color: #ddd;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
 
         .item-price {
             display: block;
             color: var(--accent-orange);
-            font-size: 0.9rem;
-            margin-top: 4px;
+            font-size: 0.8rem;
+            margin-top: 2px;
         }
 
         .item-rate {
             display: block;
             color: #888;
-            font-size: 0.85rem;
-            margin-top: 2px;
+            font-size: 0.75rem;
+            margin-top: 0px;
         }
 
         @keyframes fadeIn {
@@ -384,6 +389,10 @@
             display: none !important;
         }
 
+        .hide-custom .col-custom {
+            display: none !important;
+        }
+
         .view-controls {
             display: flex;
             align-items: center;
@@ -427,6 +436,14 @@
                 <label>
                     <input type="checkbox" id="check370" checked onchange="toggleColumnGroup('370')"> Show 370%
                 </label>
+                <label>
+                    <input type="checkbox" id="checkCustom" checked onchange="toggleColumnGroup('Custom')"> Show Custom
+                </label>
+                <div class="custom-dr-input" style="display: flex; align-items: center; gap: 5px; margin-left: 10px;">
+                    <span style="font-size: 0.8rem; color: #888;">DR %:</span>
+                    <input type="number" id="inputCustomDR" value="400" onchange="handleCustomDRChange(this.value)"
+                        style="width: 60px; background: rgba(0,0,0,0.3); border: 1px solid var(--accent-orange); color: white; border-radius: 4px; padding: 2px 5px; font-size: 0.85rem;">
+                </div>
             </div>
             <button class="btn btn-edit" onclick="toggleEditMode()" id="editBtn">
                 ✏️ Edit Mode: OFF
@@ -455,6 +472,9 @@
                         <th class="divider col-370" onclick="sortTable(12)">Items (370%)</th>
                         <th class="col-370" onclick="sortTable(13)">Total (370%)</th>
                         <th class="col-370" onclick="sortTable(14)">Silver/Agris</th>
+                        <th class="divider col-custom" onclick="sortTable(15)" id="headCustomItems">Items (%)</th>
+                        <th class="col-custom" onclick="sortTable(16)" id="headCustomTotal">Total (%)</th>
+                        <th class="col-custom" onclick="sortTable(17)">Silver/Agris</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -678,7 +698,7 @@
         let currentSortCol = 13; // Default to Total (370%)
         let isEditMode = false;
         let userOverrides = {};
-        let colSettings = { show320: true, show370: true, showBase: true };
+        let colSettings = { show320: true, show370: true, showBase: true, showCustom: true, customDR: 400 };
 
 
         // Helper: Collect all unique items (prefer ID, fallback to Name)
@@ -944,10 +964,28 @@
             if (!colSettings.showBase) table.classList.add('hide-base');
             else table.classList.remove('hide-base');
 
-            // Sync checkboxes
+            if (!colSettings.showCustom) table.classList.add('hide-custom');
+            else table.classList.remove('hide-custom');
+
+            // Sync checkboxes/inputs
             document.getElementById('check320').checked = colSettings.show320;
             document.getElementById('check370').checked = colSettings.show370;
             document.getElementById('checkBase').checked = colSettings.showBase;
+            document.getElementById('checkCustom').checked = colSettings.showCustom;
+            document.getElementById('inputCustomDR').value = colSettings.customDR || 400;
+
+            // Sync headers text
+            const drVal = colSettings.customDR || 400;
+            document.getElementById('headCustomItems').innerText = `Items (${drVal}%)`;
+            document.getElementById('headCustomTotal').innerText = `Total (${drVal}%)`;
+        }
+
+        function handleCustomDRChange(value) {
+            const num = parseInt(value) || 0;
+            colSettings.customDR = num;
+            saveColSettings();
+            applyColumnVisibility();
+            renderTable();
         }
 
         function saveColSettings() {
@@ -958,7 +996,9 @@
             try {
                 const saved = localStorage.getItem('bdo_col_settings');
                 if (saved) {
-                    colSettings = JSON.parse(saved);
+                    const loaded = JSON.parse(saved);
+                    // Merge saved settings with defaults to avoid missing keys
+                    colSettings = { ...colSettings, ...loaded };
                     applyColumnVisibility();
                 }
             } catch (e) {
@@ -975,6 +1015,9 @@
             let itemsSilverBase = 0;
             let itemsSilver320 = 0;
             let itemsSilver370 = 0;
+            let itemsSilverCustom = 0;
+
+            const customMult = (colSettings.customDR || 400) / 100;
 
             spot.items.forEach(item => {
                 if (item.excluded || item.isTrash) return;
@@ -982,26 +1025,8 @@
                 // If price exists in marketPrices, use it. Otherwise use default 0.
                 const price = marketPrices[item.name] || item.price || 0;
 
-                // Base Rate (from Garmoth approximation) * Price
-                // Efficiency Multiplier: (YourTL / GarmothTL)
-                // If Your TL is higher, you get more items proportionately.
                 const efficiency = spot.your_tl / spot.garmoth_tl;
                 const adjustedRate = item.rate * efficiency;
-
-                // Base Revenue (100% Drop Rate equivalent logic? No, rates are "Average per hour")
-                // Screenshot data is "Average Silver an Hour". If drop rate event is active, 
-                // it usually applies to Item Drop Rate.
-                // Assuming "Base Rate" in my DB is the AVERAGE rate at normal times (or whatever Garmoth reports).
-                // Garmoth usually reports averages submitted by users.
-                // 
-                // If user wants 320% column:
-                // Base items revenue * 3.2? (Assuming base is 100%)
-                // No, Garmoth data is average of mixed drop rates. This is a bit tricky.
-                // BUT, user asked for "320% columns" implying a multiplier on the *quantity*.
-                //
-                // Simplified Logic requested by user previously:
-                // "add/subtract from/to values correct % so i can see avg silver per hour for me"
-                // "make the avg/silver/h +50% etc."
 
                 // Base items revenue adjusted for kill speed
                 // Apply 15.5% Central Market tax (Value Pack) to rare items (0.845 retention)
@@ -1012,17 +1037,27 @@
                 itemsSilver320 += baseItemRev * 3.2;
                 // For 370% drop rate (3.7x items):
                 itemsSilver370 += baseItemRev * 3.7;
+                // Custom drop rate
+                itemsSilverCustom += baseItemRev * customMult;
             });
 
             const total320 = tlSilver + itemsSilver320;
             const total370 = tlSilver + itemsSilver370;
+            const totalCustom = tlSilver + itemsSilverCustom;
 
-            // Silver per Agris
             let silverPerAgris320 = 0;
-            let silverPerAgris370 = 0;
             if (spot.agris) {
                 silverPerAgris320 = total320 / spot.agris;
+            }
+
+            let silverPerAgris370 = 0;
+            if (spot.agris) {
                 silverPerAgris370 = total370 / spot.agris;
+            }
+
+            let silverPerAgrisCustom = 0;
+            if (spot.agris) {
+                silverPerAgrisCustom = totalCustom / spot.agris;
             }
 
             return {
@@ -1031,10 +1066,13 @@
                 totalBase: tlSilver + itemsSilverBase,
                 itemsSilver320,
                 total320,
+                silverPerAgris320,
                 itemsSilver370,
                 total370,
-                silverPerAgris320,
-                silverPerAgris370
+                silverPerAgris370,
+                itemsSilverCustom,
+                totalCustom,
+                silverPerAgrisCustom
             };
         }
 
@@ -1076,6 +1114,9 @@
                     <td class="items-370 divider col-370">${formatBillions(stats.itemsSilver370)}</td>
                     <td class="total-370 col-370">${formatBillions(stats.total370)}</td>
                     <td class="col-370">${stats.silverPerAgris370 > 0 ? Math.floor(stats.silverPerAgris370).toLocaleString() : '-'}</td>
+                    <td class="divider col-custom">${formatBillions(stats.itemsSilverCustom)}</td>
+                    <td class="total-custom col-custom" style="color: #e74c3c; font-weight: 700;">${formatBillions(stats.totalCustom)}</td>
+                    <td class="col-custom">${stats.silverPerAgrisCustom > 0 ? Math.floor(stats.silverPerAgrisCustom).toLocaleString() : '-'}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -1126,8 +1167,8 @@
                 const iconUrl = item.id ? `icons/${item.id}.png` : '';
 
                 el.innerHTML = `
-                    <div style="display:flex; align-items:center;"> 
-                        ${iconUrl ? `<img src="${iconUrl}" class="item-icon" onerror="this.style.visibility='hidden'">` : '<div class="item-icon"></div>'}
+                    <div style="width: 64px; height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;"> 
+                        ${iconUrl ? `<img src="${iconUrl}" class="item-icon" onerror="this.src='https://placehold.co/64x64/333/666?text=?'">` : '<div class="item-icon"></div>'}
                     </div>
                     <div class="item-details">
                         <span class="item-name">${item.name} ${item.isTrash ? '(Trash)' : ''}</span>
