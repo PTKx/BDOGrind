@@ -514,7 +514,7 @@
                     { id: 11653, name: "Deboreka Necklace", rate: 0.688, price: 0 },
                     { id: 767091, name: "Dehkia's Fragment", rate: 2.15, price: 0 },
                     { id: 721003, name: "Caphras Stone", rate: 66.9, price: 0 },
-                    { id: 56284, name: "Forgotten Limbo Box", rate: 0.049, price: 10000000 },
+                    { id: 56284, name: "Forgotten Limbo Box", rate: 0.049, price: 1200000000 },
                     { id: 15258, name: "Crystal of Stalwart Fortitude", rate: 0.0579, price: 0 },
                     { id: 748021, name: "Dehkia's Artifact - All Damage Reduction", rate: 0.0028, price: 0 },
                     { id: 748022, name: "Dehkia's Artifact - All Evasion", rate: 0.0029, price: 0 },
@@ -688,6 +688,21 @@
                     }
                 });
             });
+
+            // Ensure ingredients for derived items are also fetched
+            const ingredients = [
+                { name: "Deboreka Ring", id: 12094 },
+                { name: "Resplendent Lightstone of Fire", id: 59858 },
+                { name: "Purified Lightstone", id: 766042 }
+            ];
+            ingredients.forEach(i => {
+                const key = `id:${i.id}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueList.push(i);
+                }
+            });
+
             return uniqueList;
         }
 
@@ -768,6 +783,25 @@
                 if (dustValue > 0) {
                     marketPrices["Ancient Spirit Dust"] = dustValue;
                 }
+            }
+
+            // Calculate Forgotten Limbo Box value
+            // Rare Legacy of Erethea x2 = Deboreka Ring x2
+            // Resplendent Lightstone of Fire x1
+            // Purified Lightstone x1
+            // Gold Bar 100G (avg 20.5) + Gold Bar 10G (avg 15+1.5=16.5) + Gold Bar 1G (avg 7.5)
+            // Liquid silver: 205M + 16.5M + 0.75M = 222.25M
+            const debRing = marketPrices["Deboreka Ring"] || 0;
+            const resFire = marketPrices["Resplendent Lightstone of Fire"] || 0;
+            const purified = marketPrices["Purified Lightstone"] || 0;
+            const liquidGold = 222250000;
+
+            if (debRing > 0) {
+                // Formula: (Rares * 0.845 + LiquidGold) / 0.845
+                // This ensures that when calculateSpotStats applies 0.845, we get exact silver back.
+                // Added +0.5 debRing probability per user request (Total 2.5x)
+                const boxValue = (debRing * 2.5 + resFire + purified) + (liquidGold / 0.845);
+                marketPrices["Forgotten Limbo Box"] = Math.floor(boxValue);
             }
         }
 
