@@ -340,6 +340,66 @@
             color: #bbb;
             font-weight: normal;
         }
+
+        /* Edit Mode Styles */
+        .btn-edit {
+            background: #27ae60;
+            border-color: #27ae60;
+        }
+
+        .btn-edit.active {
+            background: #e67e22;
+            border-color: #e67e22;
+        }
+
+        .edit-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--accent-blue);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            width: 80px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Column Visibility */
+        .hide-320 .col-320 {
+            display: none !important;
+        }
+
+        .hide-370 .col-370 {
+            display: none !important;
+        }
+
+        .view-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .view-controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            color: #bbb;
+        }
+
+        .view-controls input[type="checkbox"] {
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -351,6 +411,17 @@
         <p class="subtitle">Live Market Prices & Personal Efficiency Tracker</p>
 
         <div class="controls">
+            <div class="view-controls">
+                <label>
+                    <input type="checkbox" id="check320" checked onchange="toggleColumnGroup('320')"> Show 320%
+                </label>
+                <label>
+                    <input type="checkbox" id="check370" checked onchange="toggleColumnGroup('370')"> Show 370%
+                </label>
+            </div>
+            <button class="btn btn-edit" onclick="toggleEditMode()" id="editBtn">
+                ✏️ Edit Mode: OFF
+            </button>
             <button class="btn" onclick="updateAllPrices()" id="refreshBtn">
                 🔄 Update Market Prices
             </button>
@@ -369,11 +440,12 @@
                         <th onclick="sortTable(6)">TL Silver/H</th>
                         <th onclick="sortTable(7)">Items Silver/H</th>
                         <th onclick="sortTable(8)">Total (Base)</th>
-                        <th class="divider" onclick="sortTable(9)">Items (320%)</th>
-                        <th onclick="sortTable(10)">Total (320%)</th>
-                        <th class="divider" onclick="sortTable(11)">Items (370%)</th>
-                        <th onclick="sortTable(12)">Total (370%)</th>
-                        <th onclick="sortTable(13)">Silver/Agris</th>
+                        <th class="divider col-320" onclick="sortTable(9)">Items (320%)</th>
+                        <th class="col-320" onclick="sortTable(10)">Total (320%)</th>
+                        <th class="col-320" onclick="sortTable(11)">Silver/Agris</th>
+                        <th class="divider col-370" onclick="sortTable(12)">Items (370%)</th>
+                        <th class="col-370" onclick="sortTable(13)">Total (370%)</th>
+                        <th class="col-370" onclick="sortTable(14)">Silver/Agris</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -582,6 +654,9 @@
         // Cache for prices
         let marketPrices = {};
         let sortDir = false; // Default sort direction
+        let isEditMode = false;
+        let userOverrides = {};
+        let colSettings = { show320: true, show370: true };
 
 
         // Helper: Collect all unique items (prefer ID, fallback to Name)
@@ -733,6 +808,101 @@
             }
         }
 
+        // --- User Overrides (TL/Agris) persistence ---
+        function saveUserOverrides() {
+            const overrides = {};
+            Object.keys(db).forEach(spot => {
+                overrides[spot] = {
+                    your_tl: db[spot].your_tl,
+                    agris: db[spot].agris
+                };
+            });
+            localStorage.setItem('bdo_user_overrides', JSON.stringify(overrides));
+        }
+
+        function loadUserOverrides() {
+            try {
+                const saved = localStorage.getItem('bdo_user_overrides');
+                if (saved) {
+                    userOverrides = JSON.parse(saved);
+                    Object.keys(userOverrides).forEach(spot => {
+                        if (db[spot]) {
+                            if (userOverrides[spot].your_tl !== undefined) db[spot].your_tl = userOverrides[spot].your_tl;
+                            if (userOverrides[spot].agris !== undefined) db[spot].agris = userOverrides[spot].agris;
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load user overrides", e);
+            }
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('editBtn');
+            if (isEditMode) {
+                btn.classList.add('active');
+                btn.innerHTML = '💾 Save & Exit Edit Mode';
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '✏️ Edit Mode: OFF';
+                saveUserOverrides();
+            }
+            renderTable();
+        }
+
+        function handleTlChange(spot, value) {
+            const num = parseInt(value) || 0;
+            db[spot].your_tl = num;
+            // Update table without full re-render for performance if possible, 
+            // but full re-render ensures all derived stats update correctly.
+            renderTable();
+        }
+
+        function handleAgrisChange(spot, value) {
+            const num = parseInt(value) || 0;
+            db[spot].agris = num;
+            renderTable();
+        }
+
+        // --- Column Visibility Logic ---
+        function toggleColumnGroup(group) {
+            const isChecked = document.getElementById(`check${group}`).checked;
+            colSettings[`show${group}`] = isChecked;
+            applyColumnVisibility();
+            saveColSettings();
+        }
+
+        function applyColumnVisibility() {
+            const table = document.getElementById('mainTable');
+
+            if (!colSettings.show320) table.classList.add('hide-320');
+            else table.classList.remove('hide-320');
+
+            if (!colSettings.show370) table.classList.add('hide-370');
+            else table.classList.remove('hide-370');
+
+            // Sync checkboxes
+            document.getElementById('check320').checked = colSettings.show320;
+            document.getElementById('check370').checked = colSettings.show370;
+        }
+
+        function saveColSettings() {
+            localStorage.setItem('bdo_col_settings', JSON.stringify(colSettings));
+        }
+
+        function loadColSettings() {
+            try {
+                const saved = localStorage.getItem('bdo_col_settings');
+                if (saved) {
+                    colSettings = JSON.parse(saved);
+                    applyColumnVisibility();
+                }
+            } catch (e) {
+                console.error("Failed to load column settings", e);
+            }
+        }
+
 
 
         function calculateSpotStats(spotName) {
@@ -783,9 +953,11 @@
             const total370 = tlSilver + itemsSilver370;
 
             // Silver per Agris
-            let silverPerAgris = 0;
+            let silverPerAgris320 = 0;
+            let silverPerAgris370 = 0;
             if (spot.agris) {
-                silverPerAgris = total370 / spot.agris;
+                silverPerAgris320 = total320 / spot.agris;
+                silverPerAgris370 = total370 / spot.agris;
             }
 
             return {
@@ -796,7 +968,8 @@
                 total320,
                 itemsSilver370,
                 total370,
-                silverPerAgris
+                silverPerAgris320,
+                silverPerAgris370
             };
         }
 
@@ -822,17 +995,22 @@
                     <td class="spot-name">${spot}</td>
                     <td>${data.ap_dp}</td>
                     <td>${data.garmoth_tl.toLocaleString()}</td>
-                    <td>${data.your_tl.toLocaleString()}</td>
-                    <td>${data.agris ? data.agris.toLocaleString() : '-'}</td>
+                    <td>
+                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${spot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}
+                    </td>
+                    <td>
+                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${spot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
+                    </td>
                     <td class="${effClass}">${effText}</td>
                     <td>${formatBillions(stats.tlSilver)}</td>
                     <td>${formatBillions(stats.itemsSilverBase)}</td>
                     <td class="total-base">${formatBillions(stats.totalBase)}</td>
-                    <td class="items-320 divider">${formatBillions(stats.itemsSilver320)}</td>
-                    <td class="total-320">${formatBillions(stats.total320)}</td>
-                    <td class="items-370 divider">${formatBillions(stats.itemsSilver370)}</td>
-                    <td class="total-370">${formatBillions(stats.total370)}</td>
-                    <td>${stats.silverPerAgris > 0 ? Math.floor(stats.silverPerAgris).toLocaleString() : '-'}</td>
+                    <td class="items-320 divider col-320">${formatBillions(stats.itemsSilver320)}</td>
+                    <td class="total-320 col-320">${formatBillions(stats.total320)}</td>
+                    <td class="col-320">${stats.silverPerAgris320 > 0 ? Math.floor(stats.silverPerAgris320).toLocaleString() : '-'}</td>
+                    <td class="items-370 divider col-370">${formatBillions(stats.itemsSilver370)}</td>
+                    <td class="total-370 col-370">${formatBillions(stats.total370)}</td>
+                    <td class="col-370">${stats.silverPerAgris370 > 0 ? Math.floor(stats.silverPerAgris370).toLocaleString() : '-'}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -918,11 +1096,13 @@
         // Init
         loadPrices();
         loadExclusions();
+        loadUserOverrides();
+        loadColSettings();
         renderTable();
 
-        // Default Sort: 370% Total (Column 12) Descending
+        // Default Sort: 370% Total (Column 13) Descending
         sortDir = false;
-        sortTable(12);
+        sortTable(13);
 
         function parseValue(text) {
             // Remove commas
