@@ -669,7 +669,8 @@
 
         // Cache for prices
         let marketPrices = {};
-        let sortDir = false; // Default sort direction
+        let isAscending = false;
+        let currentSortCol = 13; // Default to Total (370%)
         let isEditMode = false;
         let userOverrides = {};
         let colSettings = { show320: true, show370: true };
@@ -1033,6 +1034,9 @@
                 `;
                 tbody.appendChild(row);
             });
+
+            // Re-apply current sort
+            sortTable(currentSortCol, true);
         }
 
         function formatBillions(num) {
@@ -1111,17 +1115,11 @@
         // The new updateAllPrices function is already defined above.
 
         // Init
-        // Initial Render
-        // Init
         loadPrices();
         loadExclusions();
         loadUserOverrides();
         loadColSettings();
         renderTable();
-
-        // Default Sort: 370% Total (Column 13) Descending
-        sortDir = false;
-        sortTable(13);
 
         function parseValue(text) {
             // Remove commas
@@ -1142,7 +1140,10 @@
             return parseFloat(clean);
         }
 
-        function sortTable(colIndex) {
+        function sortTable(colIndex, keepCurrent = false) {
+            currentSortCol = colIndex;
+            if (!keepCurrent) isAscending = !isAscending;
+
             const table = document.getElementById("mainTable");
             const rows = Array.from(table.tBodies[0].rows);
 
@@ -1154,13 +1155,12 @@
                 const valB = parseValue(textB);
 
                 if (isNaN(valA) || isNaN(valB)) {
-                    return sortDir ? textA.localeCompare(textB) : textB.localeCompare(textA);
+                    return isAscending ? textA.localeCompare(textB) : textB.localeCompare(textA);
                 }
 
-                return sortDir ? valA - valB : valB - valA;
+                return isAscending ? valA - valB : valB - valA;
             });
 
-            sortDir = !sortDir;
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = "";
             rows.forEach(row => tbody.appendChild(row));
