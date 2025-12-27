@@ -598,24 +598,25 @@
             },
             "Orbita Castle": {
                 ap_dp: "1800 | 740",
-                garmoth_tl: 21128,
+                garmoth_tl: 21122,
                 your_tl: 21128,
                 trash_price: 140000,
                 items: [
-                    { id: 821317, name: "Distorted Fragment of Origin", rate: 1.63, price: 0 },
+                    { id: 767247, name: "Lightlost Core", rate: 21122, price: 140000, isTrash: true },
+                    { id: 821317, name: "Distorted Fragment of Origin", rate: 1.63, price: 108000000 },
                     { id: 11882, name: "Deboreka Earring", rate: 0.196, price: 0 },
-                    { id: 821252, name: "Crystallized Energy of Endtimes", rate: 4, price: 0 },
-                    { id: 12094, name: "Deboreka Ring", rate: 0.13, price: 0 },
+                    { id: 821252, name: "Crystallized Energy of Endtimes", rate: 4, price: 23000000 },
+                    { id: 12094, name: "Deboreka Ring", rate: 0.131, price: 0 },
                     { id: 821319, name: "JIN Crystal of Ruin", rate: 5.05, price: 8000000 },
-                    { id: 12276, name: "Deboreka Belt", rate: 0.0975, price: 0 },
+                    { id: 12276, name: "Deboreka Belt", rate: 0.0973, price: 0 },
                     { id: 721003, name: "Caphras Stone", rate: 23.6, price: 0 },
-                    { id: 11653, name: "Deboreka Necklace", rate: 0.0934, price: 0 },
-                    { id: 821318, name: "Silent Fragment of Origin", rate: 0.187, price: 0 },
-                    { id: 15290, name: "JIN Crystal of Dusky Ruin", rate: 0.0257, price: 800000000 },
-                    { id: 721002, name: "Ancient Spirit Dust", rate: 63.2, price: 3000 },
-                    { id: 761802, name: "Distorted Crystal of Origin", rate: 0.0021, price: 0 },
+                    { id: 11653, name: "Deboreka Necklace", rate: 0.0935, price: 0 },
+                    { id: 821318, name: "Silent Fragment of Origin", rate: 0.187, price: 150000000 },
+                    { id: 15290, name: "JIN Crystal of Dusky Ruin", rate: 0.0256, price: 800000000 },
+                    { id: 721002, name: "Ancient Spirit Dust", rate: 63.1, price: 3000 },
+                    { id: 761802, name: "Distorted Crystal of Origin", rate: 0.0022, price: 5400000000 },
                     { id: 16001, name: "Black Stone", rate: 49, price: 0 },
-                    { id: 761803, name: "Silent Crystal of Origin", rate: 0.0005, price: 0 }
+                    { id: 761803, name: "Silent Crystal of Origin", rate: 0.0005, price: 7000000000 }
                 ]
             },
             "Honglim Base": {
@@ -812,7 +813,10 @@
                     Object.keys(db).forEach(spot => {
                         db[spot].items.forEach(item => {
                             const key = `${spot}|${item.name}`;
-                            if (states[key] !== undefined) {
+                            // Trash items should never be excluded
+                            if (item.isTrash) {
+                                item.excluded = false;
+                            } else if (states[key] !== undefined) {
                                 item.excluded = states[key];
                             }
                         });
