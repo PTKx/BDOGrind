@@ -956,11 +956,13 @@
                 // "add/subtract from/to values correct % so i can see avg silver per hour for me"
                 // "make the avg/silver/h +50% etc."
 
-                const baseItemRev = adjustedRate * price;
+                // Base items revenue adjusted for kill speed
+                // Apply 15.5% Central Market tax (Value Pack) to rare items (0.845 retention)
+                const baseItemRev = adjustedRate * price * 0.845;
 
                 itemsSilverBase += baseItemRev;
                 // For 320% drop rate (3.2x items):
-                itemsSilver320 += baseItemRev * 3.2; // This might be an oversimplification but matches user request structure
+                itemsSilver320 += baseItemRev * 3.2;
                 // For 370% drop rate (3.7x items):
                 itemsSilver370 += baseItemRev * 3.7;
             });
