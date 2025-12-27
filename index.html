@@ -513,19 +513,18 @@
                         <th onclick="sortTable(2)">Garmoth TL</th>
                         <th onclick="sortTable(3)">Your TL</th>
                         <th onclick="sortTable(4)">Agris</th>
-                        <th onclick="sortTable(5)">Efficiency</th>
-                        <th onclick="sortTable(6)">TL Silver/H</th>
-                        <th class="col-base" onclick="sortTable(7)">Items Silver/H</th>
-                        <th class="col-base" onclick="sortTable(8)">Total (Base)</th>
-                        <th class="divider col-320" onclick="sortTable(9)">Items (320%)</th>
-                        <th class="col-320" onclick="sortTable(10)">Total (320%)</th>
-                        <th class="col-320" onclick="sortTable(11)">Silver/Agris</th>
-                        <th class="divider col-370" onclick="sortTable(12)">Items (370%)</th>
-                        <th class="col-370" onclick="sortTable(13)">Total (370%)</th>
-                        <th class="col-370" onclick="sortTable(14)">Silver/Agris</th>
-                        <th class="divider col-custom" onclick="sortTable(15)" id="headCustomItems">Items (%)</th>
-                        <th class="col-custom" onclick="sortTable(16)" id="headCustomTotal">Total (%)</th>
-                        <th class="col-custom" onclick="sortTable(17)">Silver/Agris</th>
+                        <th onclick="sortTable(5)">TL Silver/H</th>
+                        <th class="col-base" onclick="sortTable(6)">Items Silver/H</th>
+                        <th class="col-base" onclick="sortTable(7)">Total (Base)</th>
+                        <th class="divider col-320" onclick="sortTable(8)">Items (320%)</th>
+                        <th class="col-320" onclick="sortTable(9)">Total (320%)</th>
+                        <th class="col-320" onclick="sortTable(10)">Silver/Agris</th>
+                        <th class="divider col-370" onclick="sortTable(11)">Items (370%)</th>
+                        <th class="col-370" onclick="sortTable(12)">Total (370%)</th>
+                        <th class="col-370" onclick="sortTable(13)">Silver/Agris</th>
+                        <th class="divider col-custom" onclick="sortTable(14)" id="headCustomItems">Items (%)</th>
+                        <th class="col-custom" onclick="sortTable(15)" id="headCustomTotal">Total (%)</th>
+                        <th class="col-custom" onclick="sortTable(16)">Silver/Agris</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -746,7 +745,7 @@
         // Cache for prices
         let marketPrices = {};
         let isAscending = false;
-        let currentSortCol = 13; // Default to Total (370%)
+        let currentSortCol = 12; // Default to Total (370%)
         let isEditMode = false;
         let userOverrides = {};
         let colSettings = { show320: true, show370: true, showBase: true, showCustom: true, customDR: 400, useGarmoth: false };
@@ -1171,12 +1170,14 @@
                     <td>${data.ap_dp}</td>
                     <td>${data.garmoth_tl.toLocaleString()}</td>
                     <td>
-                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${spot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <span>${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${spot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}</span>
+                            <span class="${effClass}" style="font-size: 0.7rem; margin-top: 2px;">(${effText})</span>
+                        </div>
                     </td>
                     <td>
                         ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${spot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
                     </td>
-                    <td class="${effClass}">${effText}</td>
                     <td>${formatBillions(stats.tlSilver)}</td>
                     <td class="col-base">${formatBillions(stats.itemsSilverBase)}</td>
                     <td class="total-base col-base">${formatBillions(stats.totalBase)}</td>
