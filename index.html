@@ -415,6 +415,48 @@
         .view-controls input[type="checkbox"] {
             cursor: pointer;
         }
+
+        /* Mode Selector (Segmented) */
+        .mode-selector {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin: 0 auto 30px auto;
+            width: fit-content;
+            gap: 4px;
+        }
+
+        .mode-option {
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #888;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-option:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .mode-option.active {
+            background: var(--accent-blue);
+            color: white;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .mode-option.active[data-mode="garmoth"] {
+            background: var(--accent-orange);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
     </style>
 </head>
 
@@ -424,6 +466,15 @@
     <div class="container">
         <h1>💰 BDO Grind Analytics</h1>
         <p class="subtitle">Live Market Prices & Personal Efficiency Tracker</p>
+
+        <div class="mode-selector">
+            <div id="mode-personal" class="mode-option active" onclick="setMode('personal')" data-mode="personal">
+                👤 Your Efficiency
+            </div>
+            <div id="mode-garmoth" class="mode-option" onclick="setMode('garmoth')" data-mode="garmoth">
+                📊 Garmoth Baseline
+            </div>
+        </div>
 
         <div class="controls">
             <div class="view-controls">
@@ -698,7 +749,7 @@
         let currentSortCol = 13; // Default to Total (370%)
         let isEditMode = false;
         let userOverrides = {};
-        let colSettings = { show320: true, show370: true, showBase: true, showCustom: true, customDR: 400 };
+        let colSettings = { show320: true, show370: true, showBase: true, showCustom: true, customDR: 400, useGarmoth: false };
 
 
         // Helper: Collect all unique items (prefer ID, fallback to Name)
@@ -974,10 +1025,30 @@
             document.getElementById('checkCustom').checked = colSettings.showCustom;
             document.getElementById('inputCustomDR').value = colSettings.customDR || 400;
 
+            // Sync Mode Selector
+            document.querySelectorAll('.mode-option').forEach(el => el.classList.remove('active'));
+            if (colSettings.useGarmoth) {
+                document.getElementById('mode-garmoth').classList.add('active');
+            } else {
+                document.getElementById('mode-personal').classList.add('active');
+            }
+
             // Sync headers text
             const drVal = colSettings.customDR || 400;
             document.getElementById('headCustomItems').innerText = `Items (${drVal}%)`;
             document.getElementById('headCustomTotal').innerText = `Total (${drVal}%)`;
+        }
+
+        function setMode(mode) {
+            colSettings.useGarmoth = (mode === 'garmoth');
+            saveColSettings();
+            applyColumnVisibility();
+            renderTable();
+        }
+
+        function toggleUseGarmoth() {
+            // Deprecated, but keeping signature if needed internally
+            setMode(colSettings.useGarmoth ? 'personal' : 'garmoth');
         }
 
         function handleCustomDRChange(value) {
@@ -1010,7 +1081,8 @@
 
         function calculateSpotStats(spotName) {
             const spot = db[spotName];
-            const tlSilver = spot.your_tl * spot.trash_price;
+            const activeTL = colSettings.useGarmoth ? spot.garmoth_tl : spot.your_tl;
+            const tlSilver = activeTL * spot.trash_price;
 
             let itemsSilverBase = 0;
             let itemsSilver320 = 0;
@@ -1025,7 +1097,7 @@
                 // If price exists in marketPrices, use it. Otherwise use default 0.
                 const price = marketPrices[item.name] || item.price || 0;
 
-                const efficiency = spot.your_tl / spot.garmoth_tl;
+                const efficiency = activeTL / spot.garmoth_tl;
                 const adjustedRate = item.rate * efficiency;
 
                 // Base items revenue adjusted for kill speed
