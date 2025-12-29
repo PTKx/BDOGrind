@@ -1189,18 +1189,21 @@
                 // Clicking row opens details (except when clicking a specific interactive element, handled by bubbling)
                 row.onclick = (e) => openPanel(spot);
 
+                // Escape single quote for inline JS handlers
+                const escapedSpot = spot.replace(/'/g, "\\'");
+
                 row.innerHTML = `
                     <td class="spot-name">${spot}</td>
                     <td>${data.ap_dp}</td>
                     <td>${data.garmoth_tl.toLocaleString()}</td>
                     <td>
                         <div style="display: flex; flex-direction: column; align-items: center;">
-                            <span>${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${spot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}</span>
+                            <span>${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${escapedSpot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}</span>
                             <span class="${effClass}" style="font-size: 0.7rem; margin-top: 2px;">(${effText})</span>
                         </div>
                     </td>
                     <td>
-                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${spot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
+                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${escapedSpot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
                     </td>
                     <td>${formatBillions(stats.tlSilver)}</td>
                     <td class="col-base">${formatBillions(stats.itemsSilverBase)}</td>
