@@ -647,6 +647,30 @@
                     { id: 16001, name: "Black Stone", rate: 49.8, price: 0 }
                 ]
             },
+            "Tungrad Ruins": {
+                ap_dp: "310 | 410",
+                agris: 30000,
+                garmoth_tl: 49535,
+                your_tl: 49535,
+                trash_price: 35000,
+                items: [
+                    { id: 65328, name: "Tungrad Ruins Fragment", rate: 49535, price: 35000, isTrash: true },
+                    { id: 65323, name: "Essence of Devouring", rate: 1.21, price: 0 },
+                    { id: 768160, name: "Sealed Black Magic Crystal", rate: 24.9, price: 0 },
+                    { id: 56284, name: "Forgotten Limbo Box", rate: 0.0543, price: 10000000 },
+                    { id: 721002, name: "Ancient Spirit Dust", rate: 188, price: 3000 },
+                    { id: 721044, name: "Specter's Energy", rate: 1.69, price: 30000000 },
+                    { id: 65319, name: "Origin of Dark Hunger", rate: 0.0392, price: 0 },
+                    { id: 16001, name: "Black Stone", rate: 125, price: 0 },
+                    { id: 65318, name: "Embers of Resonance", rate: 0.48, price: 10000000 },
+                    { id: 5960, name: "Trace of Nature", rate: 26.3, price: 0 },
+                    { id: 766104, name: "Imperfect Lightstone of Fire", rate: 1.17, price: 3100000 },
+                    { id: 820040, name: "Kuadir Fragment", rate: 0.213, price: 10500000 },
+                    { id: 766105, name: "Imperfect Lightstone of Earth", rate: 0.135, price: 3100000 },
+                    { id: 766106, name: "Imperfect Lightstone of Wind", rate: 0.0867, price: 3000000 },
+                    { id: 15714, name: "Ancient Magic Crystal of Nature - Giant", rate: 0.0889, price: 129000 }
+                ]
+            },
             "Dokkebi Forest": {
                 ap_dp: "1445 | 530",
                 agris: 17000,
@@ -1165,21 +1189,18 @@
                 // Clicking row opens details (except when clicking a specific interactive element, handled by bubbling)
                 row.onclick = (e) => openPanel(spot);
 
-                // Escape single quote for inline JS handlers
-                const escapedSpot = spot.replace(/'/g, "\\'");
-
                 row.innerHTML = `
                     <td class="spot-name">${spot}</td>
                     <td>${data.ap_dp}</td>
                     <td>${data.garmoth_tl.toLocaleString()}</td>
                     <td>
                         <div style="display: flex; flex-direction: column; align-items: center;">
-                            <span>${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${escapedSpot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}</span>
+                            <span>${isEditMode ? `<input type="number" class="edit-input" value="${data.your_tl}" onchange="handleTlChange('${spot}', this.value)" onclick="event.stopPropagation()">` : data.your_tl.toLocaleString()}</span>
                             <span class="${effClass}" style="font-size: 0.7rem; margin-top: 2px;">(${effText})</span>
                         </div>
                     </td>
                     <td>
-                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${escapedSpot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
+                        ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${spot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
                     </td>
                     <td>${formatBillions(stats.tlSilver)}</td>
                     <td class="col-base">${formatBillions(stats.itemsSilverBase)}</td>
