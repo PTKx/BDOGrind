@@ -195,7 +195,7 @@
             transform: translate(-50%, -50%);
             background: #1e2a4a;
             width: 80%;
-            max-width: 900px;
+            max-width: 1100px;
             max-height: 85vh;
             border-radius: 16px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
@@ -260,7 +260,7 @@
 
         .loot-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 8px;
         }
 
@@ -479,7 +479,7 @@
         <div class="controls">
             <div class="view-controls">
                 <label>
-                    <input type="checkbox" id="checkBase" checked onchange="toggleColumnGroup('Base')"> Show Base
+                    <input type="checkbox" id="checkBase" checked onchange="toggleColumnGroup('Base')"> Show Base (100%)
                 </label>
                 <label>
                     <input type="checkbox" id="check320" checked onchange="toggleColumnGroup('320')"> Show 320%
@@ -515,7 +515,7 @@
                         <th onclick="sortTable(4)">Agris</th>
                         <th onclick="sortTable(5)">TL Silver/H</th>
                         <th class="col-base" onclick="sortTable(6)">Items Silver/H</th>
-                        <th class="col-base" onclick="sortTable(7)">Total (Base)</th>
+                        <th class="col-base" onclick="sortTable(7)">Total (100%)</th>
                         <th class="divider col-320" onclick="sortTable(8)">Items (320%)</th>
                         <th class="col-320" onclick="sortTable(9)">Total (320%)</th>
                         <th class="col-320" onclick="sortTable(10)">Silver/Agris</th>
@@ -541,9 +541,6 @@
             <button class="close-btn" onclick="closePanel()">×</button>
         </div>
         <div class="panel-content">
-            <div class="toggle-container">
-                <h4>Click items to exclude/include them from potential revenue (e.g. unsellable items)</h4>
-            </div>
             <div class="loot-grid" id="lootGrid">
                 <!-- Items injected here -->
             </div>
@@ -1141,7 +1138,9 @@
             let itemsSilver370 = 0;
             let itemsSilverCustom = 0;
 
-            const customMult = (colSettings.customDR || 400) / 100;
+            // Linear scaling between 100% (Base = 1.0x) and 370% (= 2.7x)
+            const getMult = (dr) => 1.0 + (Math.max(0, dr - 100) * 1.7 / 270);
+            const customMult = getMult(colSettings.customDR || 400);
 
             spot.items.forEach(item => {
                 if (item.excluded || item.isTrash) return;
@@ -1157,10 +1156,9 @@
                 const baseItemRev = adjustedRate * price * 0.845;
 
                 itemsSilverBase += baseItemRev;
-                // For 320% drop rate (3.2x items):
-                itemsSilver320 += baseItemRev * 3.2;
-                // For 370% drop rate (3.7x items):
-                itemsSilver370 += baseItemRev * 3.7;
+                itemsSilver320 += baseItemRev * getMult(320);
+                // For 370% drop rate (2.7x):
+                itemsSilver370 += baseItemRev * 2.7;
                 // Custom drop rate
                 itemsSilverCustom += baseItemRev * customMult;
             });
@@ -1255,9 +1253,10 @@
         }
 
         function formatBillions(num) {
-            if (num > 1000000000) return (num / 1000000000).toFixed(2) + 'B';
-            if (num > 1000000) return (num / 1000000).toFixed(0) + 'M';
-            return num.toLocaleString();
+            if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
+            return Math.floor(num).toLocaleString();
         }
 
         /* --- Panel Logic --- */
@@ -1270,14 +1269,26 @@
             title.textContent = spotName + " - Loot Table";
             grid.innerHTML = '';
 
-            if (db[spotName].items.length === 0) {
+            const spot = db[spotName];
+            const activeTL = colSettings.useGarmoth ? spot.garmoth_tl : spot.your_tl;
+            const efficiency = activeTL / spot.garmoth_tl;
+
+            // Linear scaling between Base (100% = 1.0x) and 370% (= 2.7x)
+            const getMult = (dr) => 1.0 + (Math.max(0, dr - 100) * 1.7 / 270);
+            const customMult = getMult(colSettings.customDR || 400);
+
+            // Calculate totals for summary
+            let totalBase = 0, total320 = 0, total370 = 0, totalCustom = 0;
+
+            if (spot.items.length === 0) {
                 grid.innerHTML = '<p style="color:#888; grid-column: 1/-1; text-align:center;">No items defined for this spot yet.</p>';
             }
 
-            db[spotName].items.forEach((item, index) => {
-                // Skip trash items in detailed view? Or show them? 
-                // Showing them is fine, but they aren't toggleable for "Market Price" usually.
+            // Add summary header
+            const summaryEl = document.createElement('div');
+            summaryEl.style.cssText = 'grid-column: 1/-1; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 15px; margin-bottom: 10px;';
 
+            spot.items.forEach((item, index) => {
                 const el = document.createElement('div');
                 el.className = 'loot-item' + (item.excluded ? ' excluded' : '');
                 if (!item.isTrash) {
@@ -1295,6 +1306,61 @@
                 const priceSource = (marketPrices[item.name] && !item.isTrash) ? 'Market' : 'Fixed';
                 const iconUrl = item.id ? `icons/${item.id}.png` : '';
 
+                // Calculate adjusted rates for each drop rate setting
+                const adjustedBaseRate = item.rate * efficiency;
+                const rate320 = adjustedBaseRate * getMult(320);
+                const rate370 = adjustedBaseRate * 2.7;
+                const rateCustom = adjustedBaseRate * customMult;
+
+                // Calculate silver/hr for each (with tax for non-trash)
+                const taxMult = item.isTrash ? 1 : 0.845;
+                const silverBase = adjustedBaseRate * price * taxMult;
+                const silver320 = rate320 * price * taxMult;
+                const silver370 = rate370 * price * taxMult;
+                const silverCustom = rateCustom * price * taxMult;
+
+                // Add to totals if not excluded and not trash
+                if (!item.excluded && !item.isTrash) {
+                    totalBase += silverBase;
+                    total320 += silver320;
+                    total370 += silver370;
+                    totalCustom += silverCustom;
+                }
+
+                // Collect enabled infos and sort by drop rate percentage
+                const infos = [];
+                infos.push({ pct: 100, label: 'Base', rate: adjustedBaseRate, silver: silverBase, color: '' });
+                if (colSettings.show320) infos.push({ pct: 320, label: '320%', rate: rate320, silver: silver320, color: 'var(--accent-blue)' });
+                if (colSettings.show370) infos.push({ pct: 370, label: '370%', rate: rate370, silver: silver370, color: 'var(--accent-purple)' });
+                if (colSettings.showCustom) infos.push({ pct: colSettings.customDR, label: colSettings.customDR + '%', rate: rateCustom, silver: silverCustom, color: '#e74c3c' });
+
+                infos.sort((a, b) => a.pct - b.pct);
+
+                let rateHTML = '<span class="item-rate">DR/h: ';
+                if (item.isTrash) {
+                    rateHTML += `100%: ${adjustedBaseRate.toLocaleString()}`;
+                } else {
+                    rateHTML += infos.map(i => {
+                        const label = i.label === 'Base' ? '100%' : i.label;
+                        const color = i.label === 'Base' ? '#888' : i.color;
+                        const content = `${label}: ${i.rate.toFixed(1)}`;
+                        return `<span style="color: ${color};">${content}</span>`;
+                    }).join(' | ');
+                }
+                rateHTML += '</span>';
+
+                let silverHTML = '';
+                if (!item.isTrash) {
+                    silverHTML = '<span class="item-rate" style="margin-top: 2px;">$$/h: ';
+                    silverHTML += infos.map(i => {
+                        const content = formatBillions(i.silver);
+                        const label = i.label === 'Base' ? '100%' : i.label;
+                        const color = i.label === 'Base' ? '#888' : i.color;
+                        return `<span style="color: ${color};">${label}: ${content}</span>`;
+                    }).join(' | ');
+                    silverHTML += '</span>';
+                }
+
                 el.innerHTML = `
                     <div style="width: 64px; height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;"> 
                         ${iconUrl ? `<img src="${iconUrl}" class="item-icon" onerror="this.src='https://placehold.co/64x64/333/666?text=?'">` : '<div class="item-icon"></div>'}
@@ -1302,11 +1368,40 @@
                     <div class="item-details">
                         <span class="item-name">${item.name} ${item.isTrash ? '(Trash)' : ''}</span>
                         <span class="item-price">${price.toLocaleString()} Silver <small>(${priceSource})</small></span>
-                        <span class="item-rate">Base Rate: ${item.rate.toLocaleString()} / hr</span>
+                        ${rateHTML}
+                        ${silverHTML}
                     </div>
                 `;
                 grid.appendChild(el);
             });
+
+            // Build summary HTML
+            const tlSilver = activeTL * spot.trash_price;
+            let summaryHTML = `<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">`;
+            summaryHTML += `<div style="text-align: center;"><div style="color: #888; font-size: 0.8rem;">Trash (${activeTL.toLocaleString()} TL)</div><div style="color: var(--accent-orange); font-weight: 700; font-size: 1.1rem;">${formatBillions(tlSilver)}/hr</div></div>`;
+
+            const summaryParts = [];
+            if (colSettings.showBase) summaryParts.push({ pct: 100, label: 'Base', items: totalBase, color: 'var(--accent-orange)' });
+            if (colSettings.show320) summaryParts.push({ pct: 320, label: '320%', items: total320, color: 'var(--accent-blue)' });
+            if (colSettings.show370) summaryParts.push({ pct: 370, label: '370%', items: total370, color: 'var(--accent-purple)' });
+            if (colSettings.showCustom) summaryParts.push({ pct: colSettings.customDR, label: colSettings.customDR + '%', items: totalCustom, color: '#e74c3c' });
+
+            summaryParts.sort((a, b) => a.pct - b.pct);
+
+            summaryParts.forEach(p => {
+                summaryHTML += `
+                <div style="text-align: center;">
+                    <div style="color: #888; font-size: 0.8rem;">Items (${p.label})</div>
+                    <div style="color: ${p.color}; font-weight: 700; font-size: 1.1rem;">${formatBillions(p.items)}/hr</div>
+                    <div style="color: #fff; font-size: 0.9rem;">Total: ${formatBillions(tlSilver + p.items)}</div>
+                </div>`;
+            });
+
+            summaryHTML += `</div>`;
+            summaryEl.innerHTML = summaryHTML;
+            grid.insertBefore(summaryEl, grid.firstChild);
+
+
 
             panel.classList.add('active');
             overlay.classList.add('active');
@@ -1344,6 +1439,9 @@
             }
             if (clean.includes('M')) {
                 return parseFloat(clean.replace('M', '')) * 1_000_000;
+            }
+            if (clean.includes('K')) {
+                return parseFloat(clean.replace('K', '')) * 1_000;
             }
             if (clean.includes('%')) {
                 return parseFloat(clean.replace('%', ''));
