@@ -1336,40 +1336,49 @@
 
                 infos.sort((a, b) => a.pct - b.pct);
 
-                let rateHTML = '<span class="item-rate">DR/h: ';
+                let statsHTML = '';
                 if (item.isTrash) {
-                    rateHTML += `100%: ${adjustedBaseRate.toLocaleString()}`;
+                    statsHTML = `
+                        <div style="margin-top: 5px; font-size: 0.8rem; color: #888;">
+                            <span style="font-weight: 700; color: #666; font-size: 0.7rem;">DR/h</span><br>
+                            ${adjustedBaseRate.toLocaleString()}
+                        </div>
+                    `;
                 } else {
-                    rateHTML += infos.map(i => {
+                    const drRows = infos.map(i => {
                         const label = i.label === 'Base' ? '100%' : i.label;
                         const color = i.label === 'Base' ? '#888' : i.color;
-                        const content = `${label}: ${i.rate.toFixed(1)}`;
-                        return `<span style="color: ${color};">${content}</span>`;
-                    }).join(' | ');
-                }
-                rateHTML += '</span>';
+                        return `<div style="color: ${color}; white-space: nowrap;">${label}: ${i.rate.toFixed(1)}</div>`;
+                    }).join('');
 
-                let silverHTML = '';
-                if (!item.isTrash) {
-                    silverHTML = '<span class="item-rate" style="margin-top: 2px;">$$/h: ';
-                    silverHTML += infos.map(i => {
-                        const content = formatBillions(i.silver);
+                    const silverRows = infos.map(i => {
                         const label = i.label === 'Base' ? '100%' : i.label;
                         const color = i.label === 'Base' ? '#888' : i.color;
-                        return `<span style="color: ${color};">${label}: ${content}</span>`;
-                    }).join(' | ');
-                    silverHTML += '</span>';
+                        return `<div style="color: ${color}; white-space: nowrap;">${label}: ${formatBillions(i.silver)}</div>`;
+                    }).join('');
+
+                    statsHTML = `
+                        <div style="display: flex; gap: 25px; margin-top: 5px; font-size: 0.8rem;">
+                            <div>
+                                <div style="color: #666; font-size: 0.7rem; font-weight: 700; margin-bottom: 2px;">DR/h</div>
+                                ${drRows}
+                            </div>
+                            <div>
+                                <div style="color: #666; font-size: 0.7rem; font-weight: 700; margin-bottom: 2px;">$$/h</div>
+                                ${silverRows}
+                            </div>
+                        </div>
+                    `;
                 }
 
                 el.innerHTML = `
-                    <div style="width: 64px; height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;"> 
+                    <div style="width: 64px; height: 64px; flex-shrink: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 10px;"> 
                         ${iconUrl ? `<img src="${iconUrl}" class="item-icon" onerror="this.src='https://placehold.co/64x64/333/666?text=?'">` : '<div class="item-icon"></div>'}
                     </div>
                     <div class="item-details">
                         <span class="item-name">${item.name} ${item.isTrash ? '(Trash)' : ''}</span>
                         <span class="item-price">${price.toLocaleString()} Silver <small>(${priceSource})</small></span>
-                        ${rateHTML}
-                        ${silverHTML}
+                        ${statsHTML}
                     </div>
                 `;
                 grid.appendChild(el);
