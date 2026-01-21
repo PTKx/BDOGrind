@@ -538,6 +538,14 @@
     <div id="details-panel">
         <div class="panel-header">
             <h2 id="panelTitle">Spot Details</h2>
+            <div
+                style="flex-grow: 1; display: flex; justify-content: flex-end; align-items: center; margin-right: 20px;">
+                <label style="font-size: 0.85rem; color: #888; display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="checkDetailedLootPanel" onchange="toggleDetailedLoot(this.checked)"
+                        style="margin-right: 5px;">
+                    Detailed Loot Info
+                </label>
+            </div>
             <button class="close-btn" onclick="closePanel()">×</button>
         </div>
         <div class="panel-content">
@@ -798,7 +806,7 @@
         let currentSortCol = 12; // Default to Total (370%)
         let isEditMode = false;
         let userOverrides = {};
-        let colSettings = { show320: true, show370: true, showBase: true, showCustom: true, customDR: 400, useGarmoth: false };
+        let colSettings = { show320: true, show370: true, showBase: true, showCustom: true, showDetailedLoot: true, customDR: 400, useGarmoth: false };
 
 
         // Helper: Collect all unique items (prefer ID, fallback to Name)
@@ -1100,6 +1108,22 @@
             setMode(colSettings.useGarmoth ? 'personal' : 'garmoth');
         }
 
+        function toggleDetailedLoot(val) {
+            colSettings.showDetailedLoot = val;
+            saveColSettings();
+
+            // Sync the main toggle if it exists (it might be in other views)
+            const mainChk = document.getElementById('checkDetailedLoot');
+            if (mainChk) mainChk.checked = val;
+
+            // If panel is open, refresh it
+            if (panel.classList.contains('active')) {
+                const pTitle = document.getElementById('panelTitle').textContent;
+                const spotName = pTitle.split(' - ')[0];
+                openPanel(spotName);
+            }
+        }
+
         function handleCustomDRChange(value) {
             const num = parseInt(value) || 0;
             colSettings.customDR = num;
@@ -1119,8 +1143,17 @@
                     const loaded = JSON.parse(saved);
                     // Merge saved settings with defaults to avoid missing keys
                     colSettings = { ...colSettings, ...loaded };
-                    applyColumnVisibility();
                 }
+
+                // Sync UI
+                if (document.getElementById('checkDetailedLoot')) {
+                    document.getElementById('checkDetailedLoot').checked = !!colSettings.showDetailedLoot;
+                }
+                if (document.getElementById('checkDetailedLootPanel')) {
+                    document.getElementById('checkDetailedLootPanel').checked = !!colSettings.showDetailedLoot;
+                }
+
+                applyColumnVisibility();
             } catch (e) {
                 console.error("Failed to load column settings", e);
             }
@@ -1269,6 +1302,10 @@
             title.textContent = spotName + " - Loot Table";
             grid.innerHTML = '';
 
+            // Sync the toggle in the panel
+            const panelChk = document.getElementById('checkDetailedLootPanel');
+            if (panelChk) panelChk.checked = !!colSettings.showDetailedLoot;
+
             const spot = db[spotName];
             const activeTL = colSettings.useGarmoth ? spot.garmoth_tl : spot.your_tl;
             const efficiency = activeTL / spot.garmoth_tl;
@@ -1338,13 +1375,12 @@
 
                 let statsHTML = '';
                 if (item.isTrash) {
-                    statsHTML = `
-                        <div style="margin-top: 5px; font-size: 0.8rem; color: #888;">
-                            <span style="font-weight: 700; color: #666; font-size: 0.7rem;">DR/h</span><br>
-                            ${adjustedBaseRate.toLocaleString()}
-                        </div>
-                    `;
+                    statsHTML = `<span class="item-rate">Base Rate: ${item.rate.toLocaleString()} / hr</span>`;
+                } else if (!colSettings.showDetailedLoot) {
+                    // Simple view as requested
+                    statsHTML = `<span class="item-rate">Base Rate: ${item.rate.toLocaleString()} / hr</span>`;
                 } else {
+                    // Detailed vertical view
                     const drRows = infos.map(i => {
                         const label = i.label === 'Base' ? '100%' : i.label;
                         const color = i.label === 'Base' ? '#888' : i.color;
