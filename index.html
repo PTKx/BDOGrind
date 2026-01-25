@@ -143,6 +143,14 @@
             cursor: pointer;
         }
 
+        /* No Agris Column Styling */
+        .no-agris-text {
+            color: #bdc3c7;
+            /* Muted/Grey for No Agris */
+            font-size: 0.9em;
+        }
+
+
         /* Specific text colors */
         .spot-name {
             font-weight: 600;
@@ -512,19 +520,32 @@
                         <th onclick="sortTable(1)">AP/DP</th>
                         <th onclick="sortTable(2)">Garmoth TL</th>
                         <th onclick="sortTable(3)">Your TL</th>
-                        <th onclick="sortTable(4)">Agris</th>
-                        <th onclick="sortTable(5)">TL Silver/H</th>
-                        <th class="col-base" onclick="sortTable(6)">Items Silver/H</th>
-                        <th class="col-base" onclick="sortTable(7)">Total (100%)</th>
-                        <th class="divider col-320" onclick="sortTable(8)">Items (320%)</th>
-                        <th class="col-320" onclick="sortTable(9)">Total (320%)</th>
-                        <th class="col-320" onclick="sortTable(10)">Silver/Agris</th>
-                        <th class="divider col-370" onclick="sortTable(11)">Items (370%)</th>
-                        <th class="col-370" onclick="sortTable(12)">Total (370%)</th>
-                        <th class="col-370" onclick="sortTable(13)">Silver/Agris</th>
-                        <th class="divider col-custom" onclick="sortTable(14)" id="headCustomItems">Items (%)</th>
-                        <th class="col-custom" onclick="sortTable(15)" id="headCustomTotal">Total (%)</th>
-                        <th class="col-custom" onclick="sortTable(16)">Silver/Agris</th>
+                        <th onclick="sortTable(4)">Agris Cost</th>
+                        <th onclick="sortTable(5)">TL $/H</th>
+                        <th onclick="sortTable(6)">No Agris TL $/H</th>
+
+                        <!-- Base Group -->
+                        <th class="col-base" onclick="sortTable(7)">Items $/H</th>
+                        <th class="col-base" onclick="sortTable(8)">Total (100%)</th>
+                        <th class="col-base" onclick="sortTable(9)">Total (No Agris)</th>
+
+                        <!-- 320% Group -->
+                        <th class="divider col-320" onclick="sortTable(10)">Items (320%)</th>
+                        <th class="col-320" onclick="sortTable(11)">Total (320%)</th>
+                        <th class="col-320" onclick="sortTable(12)">Total (No Agris)</th>
+                        <th class="col-320" onclick="sortTable(13)">Silver/Agris</th>
+
+                        <!-- 370% Group -->
+                        <th class="divider col-370" onclick="sortTable(14)">Items (370%)</th>
+                        <th class="col-370" onclick="sortTable(15)">Total (370%)</th>
+                        <th class="col-370" onclick="sortTable(16)">Total (No Agris)</th>
+                        <th class="col-370" onclick="sortTable(17)">Silver/Agris</th>
+
+                        <!-- Custom Group -->
+                        <th class="divider col-custom" onclick="sortTable(18)" id="headCustomItems">Items (%)</th>
+                        <th class="col-custom" onclick="sortTable(19)" id="headCustomTotal">Total (%)</th>
+                        <th class="col-custom" onclick="sortTable(20)">Total (No Agris)</th>
+                        <th class="col-custom" onclick="sortTable(21)">Silver/Agris</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -1164,7 +1185,7 @@
         function calculateSpotStats(spotName) {
             const spot = db[spotName];
             const activeTL = colSettings.useGarmoth ? spot.garmoth_tl : spot.your_tl;
-            const tlSilver = activeTL * spot.trash_price;
+            // tlSilver will be calculated later based on Agris status
 
             let itemsSilverBase = 0;
             let itemsSilver320 = 0;
@@ -1196,10 +1217,34 @@
                 itemsSilverCustom += baseItemRev * customMult;
             });
 
-            const total320 = tlSilver + itemsSilver320;
-            const total370 = tlSilver + itemsSilver370;
-            const totalCustom = tlSilver + itemsSilverCustom;
+            // Determine Base TL and Agris TL
+            // User confirmed "Your TL" input ALREADY includes the 69.5% Agris bonus.
+            // So we must divide by 1.695 to get the "No Agris" value.
+            // We apply this to ALL spots regardless of agris cost property, per user request.
+            const agrisTL = activeTL;
+            const baseTL = activeTL / 1.695;
 
+
+            // Calculate Silver for TL
+            const tlSilver = agrisTL * spot.trash_price;          // "Agris" Silver (Input)
+            const tlSilverNoAgris = baseTL * spot.trash_price;    // "No Agris" Silver
+
+            const totalBase = tlSilver + itemsSilverBase;
+            const totalBaseNoAgris = tlSilverNoAgris + itemsSilverBase;
+
+            const total320 = tlSilver + itemsSilver320;
+            const total320NoAgris = tlSilverNoAgris + itemsSilver320;
+
+            const total370 = tlSilver + itemsSilver370;
+            const total370NoAgris = tlSilverNoAgris + itemsSilver370;
+
+            const totalCustom = tlSilver + itemsSilverCustom;
+            const totalCustomNoAgris = tlSilverNoAgris + itemsSilverCustom;
+
+            // Silver Per Agris should be based on the Total WITH Agris (or the difference? Standard is usually Total/Cost)
+            // But since this column exists in the context of "Efficiency of using Agris", 
+            // usually people want (Total Silver / Agris Cost).
+            // We'll use the Agris Total for this calculation.
             let silverPerAgris320 = 0;
             if (spot.agris) {
                 silverPerAgris320 = total320 / spot.agris;
@@ -1217,16 +1262,21 @@
 
             return {
                 tlSilver,
+                tlSilverNoAgris,
                 itemsSilverBase,
-                totalBase: tlSilver + itemsSilverBase,
+                totalBase,
+                totalBaseNoAgris,
                 itemsSilver320,
                 total320,
+                total320NoAgris,
                 silverPerAgris320,
                 itemsSilver370,
                 total370,
+                total370NoAgris,
                 silverPerAgris370,
                 itemsSilverCustom,
                 totalCustom,
+                totalCustomNoAgris,
                 silverPerAgrisCustom
             };
         }
@@ -1265,17 +1315,31 @@
                     <td>
                         ${isEditMode ? `<input type="number" class="edit-input" value="${data.agris || 0}" onchange="handleAgrisChange('${escapedSpot}', this.value)" onclick="event.stopPropagation()">` : (data.agris ? data.agris.toLocaleString() : '-')}
                     </td>
-                    <td>${formatBillions(stats.tlSilver)}</td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <span>${formatBillions(stats.tlSilver)}</span>
+                            <span class="positive" style="font-size: 0.7rem; margin-top: 2px;">(+${formatBillions(stats.tlSilver - stats.tlSilverNoAgris)})</span>
+                        </div>
+                    </td>
+                    <td class="no-agris-text">${formatBillions(stats.tlSilverNoAgris)}</td>
+                    
                     <td class="col-base">${formatBillions(stats.itemsSilverBase)}</td>
                     <td class="total-base col-base">${formatBillions(stats.totalBase)}</td>
+                    <td class="col-base no-agris-text">${formatBillions(stats.totalBaseNoAgris)}</td>
+
                     <td class="items-320 divider col-320">${formatBillions(stats.itemsSilver320)}</td>
                     <td class="total-320 col-320">${formatBillions(stats.total320)}</td>
+                    <td class="col-320 no-agris-text">${formatBillions(stats.total320NoAgris)}</td>
                     <td class="col-320">${stats.silverPerAgris320 > 0 ? Math.floor(stats.silverPerAgris320).toLocaleString() : '-'}</td>
+
                     <td class="items-370 divider col-370">${formatBillions(stats.itemsSilver370)}</td>
                     <td class="total-370 col-370">${formatBillions(stats.total370)}</td>
+                    <td class="col-370 no-agris-text">${formatBillions(stats.total370NoAgris)}</td>
                     <td class="col-370">${stats.silverPerAgris370 > 0 ? Math.floor(stats.silverPerAgris370).toLocaleString() : '-'}</td>
+
                     <td class="divider col-custom">${formatBillions(stats.itemsSilverCustom)}</td>
                     <td class="total-custom col-custom" style="color: #e74c3c; font-weight: 700;">${formatBillions(stats.totalCustom)}</td>
+                    <td class="col-custom no-agris-text">${formatBillions(stats.totalCustomNoAgris)}</td>
                     <td class="col-custom">${stats.silverPerAgrisCustom > 0 ? Math.floor(stats.silverPerAgrisCustom).toLocaleString() : '-'}</td>
                 `;
                 tbody.appendChild(row);
